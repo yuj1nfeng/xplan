@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPlan - COPAW 客户端</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app {
+            max-width: 900px;
+            margin: 0 auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 20px; }
+        .status { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f9fafb;
+        }
+        .message { display: flex; gap: 12px; margin-bottom: 16px; }
+        .message.user { flex-direction: row-reverse; }
+        .avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: #e5e7eb;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .message-content { max-width: 70%; }
+        .message-text {
+            padding: 12px 16px; border-radius: 12px;
+            font-size: 14px; line-height: 1.5;
+        }
+        .message.assistant .message-text { background: #fff; border: 1px solid #e5e7eb; }
+        .message.user .message-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .input-area {
+            padding: 20px; background: #fff;
+            border-top: 1px solid #e5e7eb;
+            display: flex; gap: 12px;
+        }
+        .input-area input {
+            flex: 1; padding: 12px 16px;
+            border: 1px solid #e5e7eb; border-radius: 24px;
+            font-size: 14px; outline: none;
+        }
+        .input-area input:focus { border-color: #667eea; }
+        .input-area button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 24px;
+            cursor: pointer; font-size: 14px;
+        }
+        .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .welcome { text-align: center; padding: 60px 20px; color: #6b7280; }
+        .welcome h2 { margin-bottom: 12px; color: #374151; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <h1>🚀 XPlan - COPAW 客户端</h1>
+            <div class="status">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">已连接</span>
+            </div>
+        </div>
+        <div class="messages" id="messages">
+            <div class="welcome">
+                <h2>👋 欢迎使用 XPlan</h2>
+                <p>Tauri 跨平台版本</p>
+                <p>支持 macOS, Windows, Linux</p>
+            </div>
+        </div>
+        <form class="input-area" id="chatForm">
+            <input type="text" id="messageInput" placeholder="输入消息..." autocomplete="off">
+            <button type="submit" id="sendBtn">发送</button>
+        </form>
+    </div>
+    <script>
+        const API_URL = 'http://localhost:18789';
+        const messagesEl = document.getElementById('messages');
+        const form = document.getElementById('chatForm');
+        const input = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = input.value.trim();
+            if (!content) return;
+            addMessage('user', content);
+            input.value = '';
+            sendBtn.disabled = true;
+            try {
+                const response = await fetch(API_URL + '/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: content })
+                });
+                const data = await response.json();
+                addMessage('assistant', data.message || data.content || '收到消息');
+            } catch (error) {
+                addMessage('assistant', '[测试模式] 收到：' + content);
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        });
+
+        function addMessage(role, content) {
+            const welcome = messagesEl.querySelector('.welcome');
+            if (welcome) welcome.remove();
+            const msgEl = document.createElement('div');
+            msgEl.className = 'message ' + role;
+            msgEl.innerHTML = (role === 'assistant' ? '<div class="avatar">🤖</div>' : '') +
+                '<div class="message-content"><div class="message-text">' + content + '</div></div>' +
+                (role === 'user' ? '<div class="avatar">👤</div>' : '');
+            messagesEl.appendChild(msgEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        async function checkStatus() {
+            try {
+                await fetch(API_URL + '/api/health');
+                statusDot.style.background = '#10b981';
+                statusText.textContent = '已连接';
+            } catch {
+                statusDot.style.background = '#fbbf24';
+                statusText.textContent = '测试模式';
+            }
+        }
+        checkStatus();
+        input.focus();
+    </script>
+</body>
+</html>
