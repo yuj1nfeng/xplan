@@ -1,0 +1,12 @@
+# XPlan 邮件通知配置
+RECIPIENT_EMAIL="296519653@qq.com"
+NOTIFY_ON_RELEASE="true"
+NOTIFY_ON_BUILD_COMPLETE="true"
+EMAIL_PROVIDER="qq_smtp"
+SMTP_HOST="smtp.qq.com"
+SMTP_PORT="587"
+
+# 用户信息
+USER_NAME="余金锋"
+USER_GITHUB="yuj1nfeng"
+USER_EMAIL="296519653@qq.com"
