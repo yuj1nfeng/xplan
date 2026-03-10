@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:xplan/providers/chat_provider.dart';
-import 'package:xplan/models/message.dart';
 
 void main() {
   group('ChatProvider Tests', () {
@@ -232,12 +231,11 @@ void main() {
     group('State Persistence', () {
       test('messages persist across state changes', () async {
         await chatProvider.sendMessage('Persistent message');
-        final messageCount = chatProvider.messages.length;
-        
+
         // Trigger state change
         await chatProvider.newConversation();
         await chatProvider.sendMessage('New message');
-        
+
         // New conversation should have new messages
         expect(chatProvider.messages.length, greaterThan(0));
       });

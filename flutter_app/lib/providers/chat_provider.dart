@@ -4,8 +4,8 @@ import '../services/copaw_service.dart';
 
 class ChatProvider extends ChangeNotifier {
   final CopawService _copawService = CopawService();
-  
-  List<Message> _messages = [];
+
+  final List<Message> _messages = [];
   String? _conversationId;
   bool _isConnected = false;
   bool _isLoading = false;

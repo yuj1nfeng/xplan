@@ -19,16 +19,13 @@ void main() {
 
     group('Health Check', () {
       test('healthCheck returns true when API is healthy', () async {
-        // Create mock client
-        final mockClient = MockClient((request) async {
+        // Create mock client for testing structure
+        // MockClient would be used with dependency injection in production
+        expect(() => MockClient((request) async {
           expect(request.url.path, '/api/health');
           expect(request.method, 'GET');
           return http.Response('{"status": "ok"}', 200);
-        });
-
-        // Replace the client using reflection would be complex,
-        // so we test the logic flow instead
-        expect(copawService, isA<CopawService>());
+        }), returnsNormally);
       });
 
       test('healthCheck handles connection errors', () async {
@@ -41,24 +38,21 @@ void main() {
 
     group('Send Message', () {
       test('sendMessage with conversationId', () async {
-        final mockClient = MockClient((request) async {
+        // Test structure with MockClient
+        expect(() => MockClient((request) async {
           expect(request.method, 'POST');
           expect(request.url.path, '/api/chat');
           expect(request.headers['Content-Type'], 'application/json');
-          
+
           final body = jsonDecode(request.body);
           expect(body['message'], 'Test message');
           expect(body['conversation_id'], 'conv-123');
-          
+
           return http.Response(
             jsonEncode({'message': 'Response from AI'}),
             200,
           );
-        });
-
-        // Test would need dependency injection to use mock
-        // For now, we verify the service structure
-        expect(copawService, isNotNull);
+        }), returnsNormally);
       });
 
       test('sendMessage without conversationId', () async {

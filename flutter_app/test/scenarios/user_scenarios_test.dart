@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 import 'package:xplan/main.dart';
-import 'package:xplan/providers/chat_provider.dart';
 
 /// 场景测试 - 模拟真实用户使用场景
 void main() {
   group('Scenario Tests - User Stories', () {
-    
+
     testWidgets('Scenario 1: First-time user experience', (tester) async {
       await tester.pumpWidget(const XPlanApp());
       await tester.pumpAndSettle();
@@ -59,7 +57,7 @@ void main() {
     testWidgets('Scenario 5: Long message handling', (tester) async {
       await tester.pumpWidget(const XPlanApp());
       await tester.pumpAndSettle();
-      final longMessage = '这是一条很长的测试消息，用于验证应用对长文本的处理能力。包含多个段落和特殊字符';
+      const longMessage = '这是一条很长的测试消息，用于验证应用对长文本的处理能力。包含多个段落和特殊字符';
       await tester.enterText(find.byType(TextField), longMessage);
       await tester.tap(find.byIcon(Icons.send));
       await tester.pumpAndSettle();
@@ -113,8 +111,11 @@ void main() {
       for (int i = 1; i <= 20; i++) {
         await tester.enterText(find.byType(TextField), '性能消息 $i');
         await tester.tap(find.byIcon(Icons.send));
-        if (i % 5 == 0) await tester.pumpAndSettle();
-        else await tester.pump();
+        if (i % 5 == 0) {
+          await tester.pumpAndSettle();
+        } else {
+          await tester.pump();
+        }
       }
       await tester.pumpAndSettle();
       expect(find.byType(ListView), findsOneWidget);
