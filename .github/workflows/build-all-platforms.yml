@@ -1,0 +1,200 @@
+name: Build All Platforms
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-web:
+    name: Build Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      
+      - name: Build Web
+        run: flutter build web --release
+      
+      - name: Upload Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xplan-web-${{ github.ref_name }}
+          path: build/web/
+          retention-days: 30
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang gtk3-devel
+      
+      - name: Build Linux
+        run: flutter build linux --release
+      
+      - name: Create Tarball
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czf ../../../xplan-linux-x64-${{ github.ref_name }}.tar.gz *
+      
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xplan-linux-${{ github.ref_name }}
+          path: build/linux/x64/release/bundle/xplan-linux-x64-*.tar.gz
+          retention-days: 30
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      
+      - name: Build Android APK
+        run: flutter build apk --release
+      
+      - name: Upload Android Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xplan-android-${{ github.ref_name }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      
+      - name: Build macOS
+        run: flutter build macos --release
+      
+      - name: Create DMG
+        run: |
+          cd build/macos/Build/Products/Release
+          ln -s /Applications Applications
+          hdiutil create -format UDZO -srcfolder XPlan.app -volname XPlan xplan-macos-${{ github.ref_name }}.dmg
+      
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xplan-macos-${{ github.ref_name }}
+          path: build/macos/Build/Products/Release/xplan-macos-*.dmg
+          retention-days: 30
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      
+      - name: Build Windows
+        run: flutter build windows --release
+      
+      - name: Create ZIP
+        run: |
+          cd build/windows/runner/Release
+          Compress-Archive -Path * -DestinationPath ../../../xplan-windows-${{ github.ref_name }}.zip
+      
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xplan-windows-${{ github.ref_name }}
+          path: build/windows/runner/Release/xplan-windows-*.zip
+          retention-days: 30
+
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.4'
+          channel: 'stable'
+      
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
+      
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xplan-ios-${{ github.ref_name }}
+          path: build/ios/iphoneos/Runner.app
+          retention-days: 30
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-web, build-linux, build-android, build-macos, build-windows, build-ios]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Create Release Notes
+        run: |
+          echo "# XPlan ${{ github.ref_name }}" > release-notes.md
+          echo "" >> release-notes.md
+          echo "## Downloads" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "- Web: [Download](artifacts/xplan-web-${{ github.ref_name }})" >> release-notes.md
+          echo "- Linux: [Download](artifacts/xplan-linux-${{ github.ref_name }})" >> release-notes.md
+          echo "- Android: [Download](artifacts/xplan-android-${{ github.ref_name }})" >> release-notes.md
+          echo "- macOS: [Download](artifacts/xplan-macos-${{ github.ref_name }})" >> release-notes.md
+          echo "- Windows: [Download](artifacts/xplan-windows-${{ github.ref_name }})" >> release-notes.md
+          echo "- iOS: [Download](artifacts/xplan-ios-${{ github.ref_name }})" >> release-notes.md
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/*
+          body_path: release-notes.md
+          generate_release_notes: true
