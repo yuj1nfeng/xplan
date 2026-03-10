@@ -1,0 +1,14 @@
+# Release builds
+target/
+*.tar.gz
+!xplan-tauri-linux.tar.gz
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
