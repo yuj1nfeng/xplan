@@ -1,7 +1,7 @@
 name: xplan
-description: XPlan - 跨平台 COPAW 客户端，支持 macOS, Windows, Linux, Android, iOS
+description: AI 写作助手 - 智能润色、文章生成、多语言翻译
 publish_to: 'none'
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -9,21 +9,27 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+
   # HTTP 请求
   http: ^1.1.0
-  
+
   # 状态管理
   provider: ^6.1.1
-  
+
   # 本地存储
   shared_preferences: ^2.2.2
-  
+
   # 时间格式化
   intl: ^0.18.1
-  
+
   # 图标
   cupertino_icons: ^1.0.6
+
+  # 微信支付 (待集成)
+  # wechat_pay: ^0.0.1  # 实际项目中添加
+
+  # URL 启动 (用于打开微信)
+  # url_launcher: ^6.2.1  # 实际项目中添加
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +38,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/
