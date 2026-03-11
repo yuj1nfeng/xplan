@@ -24,7 +24,7 @@ class UsageLimitService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final today = _getTodayKey();
-      final key = 'usage_$userId_$today';
+      final key = 'usage_${userId}_$today';
       return prefs.getInt(key) ?? 0;
     } catch (e) {
       debugPrint('获取使用次数失败：$e');
@@ -37,7 +37,7 @@ class UsageLimitService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final today = _getTodayKey();
-      final key = 'usage_$userId_$today';
+      final key = 'usage_${userId}_$today';
       final current = prefs.getInt(key) ?? 0;
       await prefs.setInt(key, current + 1);
     } catch (e) {
@@ -88,7 +88,7 @@ class UsageLimitService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final today = _getTodayKey();
-      final key = 'usage_$userId_$today';
+      final key = 'usage_${userId}_$today';
       await prefs.remove(key);
     } catch (e) {
       debugPrint('重置使用次数失败：$e');
@@ -125,7 +125,7 @@ class UsageCheckResult {
     required this.canUse,
     this.reason,
     this.message,
-    this.requireUpgrade,
+    this.requireUpgrade = false,
   });
 }
 

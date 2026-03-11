@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/chat_view.dart';
+import 'settings_page.dart';
+import 'conversation_list_page.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -39,10 +41,32 @@ class HomeScreen extends StatelessWidget {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.list),
+            tooltip: '会话列表',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ConversationListPage(),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.add_comment),
             tooltip: '新对话',
             onPressed: () {
               context.read<ChatProvider>().newConversation();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: '设置',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
             },
           ),
         ],

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'wechat_pay_service.dart';
+import '../services/wechat_pay_service.dart';
 
 /// 订阅管理 Provider
 class SubscriptionProvider extends ChangeNotifier {
   final WeChatPayService _payService = WeChatPayService();
-  
+
   SubscriptionStatus _subscriptionStatus = SubscriptionStatus(
     isPremium: false,
     expiresAt: null,

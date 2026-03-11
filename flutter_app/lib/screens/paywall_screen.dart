@@ -14,6 +14,33 @@ class PaywallScreen extends StatefulWidget {
   });
 
   @override
+  State<PaywallScreen> createState() => _PaywallScreenState();
+}
+
+class _PaywallScreenState extends State<PaywallScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(_controller);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
@@ -33,10 +60,7 @@ class PaywallScreen extends StatefulWidget {
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.1),
-                end: Offset.zero,
-              ).animate(_slideAnimation),
+              position: _slideAnimation,
               child: _buildContent(),
             ),
           ),
@@ -61,7 +85,7 @@ class PaywallScreen extends StatefulWidget {
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(this.context).pop(),
                 ),
               ),
             ],
@@ -508,27 +532,27 @@ class PaywallScreen extends StatefulWidget {
     try {
       final success = await subscriptionProvider.purchaseSubscription(
         planId: plan['id'] as String,
-        userId: userId,
+        userId: widget.userId,
       );
 
-      if (context.mounted) {
-        Navigator.of(context).pop(); // 关闭加载对话框
+      if (this.context.mounted) {
+        Navigator.of(this.context).pop(); // 关闭加载对话框
 
         if (success) {
           // 支付成功
-          _showSuccessDialog(context);
+          _showSuccessDialog(this.context);
         } else {
           // 支付失败
           _showErrorDialog(
-            context,
+            this.context,
             subscriptionProvider.errorMessage ?? '支付失败',
           );
         }
       }
     } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        _showErrorDialog(context, '支付异常：$e');
+      if (this.context.mounted) {
+        Navigator.of(this.context).pop();
+        _showErrorDialog(this.context, '支付异常：$e');
       }
     }
   }
@@ -570,12 +594,12 @@ class PaywallScreen extends StatefulWidget {
 
   Future<void> _restorePurchase(BuildContext context) async {
     final subscriptionProvider =
-        Provider.of<SubscriptionProvider>(context, listen: false);
+        Provider.of<SubscriptionProvider>(this.context, listen: false);
 
-    await subscriptionProvider.restorePurchase(userId);
+    await subscriptionProvider.restorePurchase(widget.userId);
 
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (this.context.mounted) {
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(
           content: Text(
             subscriptionProvider.errorMessage ?? '恢复购买成功',
