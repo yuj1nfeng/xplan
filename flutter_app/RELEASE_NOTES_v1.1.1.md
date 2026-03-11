@@ -1,7 +1,7 @@
-# XPlan v1.1.0 发布说明
+# XPlan v1.1.1 发布说明
 
 **发布日期**: 2026 年 3 月 11 日
-**版本**: v1.1.0
+**版本**: v1.1.1
 **状态**: 🚀 编译中
 
 ---
@@ -47,6 +47,7 @@
 | `usage_limit_service.dart` | 修复字符串插值语法错误 |
 | `paywall_screen.dart` | 添加缺失的 `createState` 方法和动画控制器 |
 | `subscription_provider.dart` | 修复导入路径问题 |
+| **Windows 编译** | 使用 bash 代替 PowerShell，修复语法错误 |
 
 ---
 
@@ -85,6 +86,10 @@
 无需新增依赖，使用现有：
 - `provider` - 状态管理
 - `shared_preferences` - 本地存储
+
+### GitHub Actions
+- 修复 Windows 编译步骤，使用 bash 代替 PowerShell
+- 使用 `zip` 命令代替 `Compress-Archive`
 
 ### API 变更
 无破坏性变更，所有现有 API 保持兼容。
