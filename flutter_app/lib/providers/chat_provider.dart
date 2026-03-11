@@ -13,6 +13,7 @@ class ChatProvider extends ChangeNotifier {
   bool _isLoading = false;
   String _statusMessage = '连接中...';
   bool _isHistoryLoaded = false;
+  String _currentModel = 'qwen3.5:9b';
 
   List<Message> get messages => _messages;
   String? get conversationId => _conversationId;
@@ -20,6 +21,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get statusMessage => _statusMessage;
   bool get isHistoryLoaded => _isHistoryLoaded;
+  String get currentModel => _currentModel;
 
   ChatProvider() {
     _initialize();
@@ -27,9 +29,6 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> _initialize() async {
     await _checkConnection();
-    if (_isConnected) {
-      await _createConversation();
-    }
   }
 
   Future<void> _checkConnection() async {
@@ -39,27 +38,48 @@ class ChatProvider extends ChangeNotifier {
 
       final isHealthy = await _copawService.healthCheck();
       _isConnected = isHealthy;
-      _statusMessage = isHealthy ? '已连接' : '连接失败';
-
-      if (!isHealthy) {
-        _statusMessage = '测试模式 (COPAW 服务未连接)';
+      
+      if (isHealthy) {
+        _statusMessage = '已连接 ($_currentModel)';
+        // 获取可用模型
+        final models = await _copawService.getModels();
+        if (models.isNotEmpty) {
+          _currentModel = models.first;
+          _statusMessage = '已连接 ($_currentModel)';
+        }
+      } else {
+        _statusMessage = '测试模式 (服务未连接)';
       }
 
       notifyListeners();
     } catch (e) {
       _isConnected = false;
-      _statusMessage = '测试模式 (COPAW 服务未连接)';
+      _statusMessage = '测试模式 (服务未连接)';
       notifyListeners();
     }
   }
 
-  Future<void> _createConversation() async {
-    try {
-      _conversationId = await _copawService.createConversation();
-      notifyListeners();
-    } catch (e) {
-      print('创建会话失败：$e');
-    }
+  /// 切换模型
+  void setModel(String model) {
+    _currentModel = model;
+    _statusMessage = '已连接 ($_currentModel)';
+    notifyListeners();
+  }
+
+  /// 获取可用模型列表
+  Future<List<String>> getAvailableModels() async {
+    return await _copawService.getModels();
+  }
+
+  /// 刷新连接（下拉刷新调用）
+  Future<void> refreshConnection() async {
+    await _checkConnection();
+  }
+
+  /// 添加消息到列表
+  void addMessage(Message message) {
+    _messages.add(message);
+    notifyListeners();
   }
 
   /// 加载指定会话的历史消息
@@ -70,7 +90,6 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 从本地加载历史消息
       final history = await _historyService.loadMessages(conversationId);
       _messages.addAll(history);
       _isHistoryLoaded = true;
@@ -100,14 +119,15 @@ class ChatProvider extends ChangeNotifier {
     }
 
     try {
-      if (_isConnected && _conversationId != null) {
-        // 调用真实 API
+      if (_isConnected) {
+        // 调用 OpenAI 兼容 API，传递历史消息
         final response = await _copawService.sendMessage(
           content,
-          conversationId: _conversationId,
+          model: _currentModel,
+          history: _messages.where((m) => m.role != 'system').toList(),
         );
         _messages.add(response);
-        
+
         // 保存助手消息到历史
         if (_conversationId != null) {
           await _historyService.appendMessage(_conversationId!, response);
@@ -117,13 +137,12 @@ class ChatProvider extends ChangeNotifier {
         await Future.delayed(const Duration(seconds: 1));
         final assistantMessage = Message(
           id: (DateTime.now().millisecondsSinceEpoch + 1).toString(),
-          content: '[测试模式] 收到你的消息：$content\n\n注意：COPAW 服务 (端口 18789) 未启动或不可用。\n\n当前支持的平台：\n- macOS\n- Windows\n- Linux\n- Android\n- iOS',
+          content: '[测试模式] 收到你的消息：$content\n\n注意：AI 服务未连接。\n\n请检查 API 地址配置。',
           role: 'assistant',
           timestamp: DateTime.now(),
         );
         _messages.add(assistantMessage);
-        
-        // 保存助手消息到历史
+
         if (_conversationId != null) {
           await _historyService.appendMessage(_conversationId!, assistantMessage);
         }
@@ -146,11 +165,7 @@ class ChatProvider extends ChangeNotifier {
   Future<void> newConversation() async {
     _messages.clear();
     _isHistoryLoaded = false;
-    if (_isConnected) {
-      await _createConversation();
-    } else {
-      _conversationId = null;
-    }
+    _conversationId = DateTime.now().millisecondsSinceEpoch.toString();
     notifyListeners();
   }
 

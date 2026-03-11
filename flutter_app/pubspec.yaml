@@ -25,11 +25,17 @@ dependencies:
   # 图标
   cupertino_icons: ^1.0.6
 
-  # 微信支付 (待集成)
-  # wechat_pay: ^0.0.1  # 实际项目中添加
+  # 文件选择
+  file_picker: ^8.0.0
 
-  # URL 启动 (用于打开微信)
-  # url_launcher: ^6.2.1  # 实际项目中添加
+  # 图片选择
+  image_picker: ^1.0.7
+
+  # URL 启动
+  url_launcher: ^6.2.1
+
+  # 本地路径
+  path_provider: ^2.1.1
 
 dev_dependencies:
   flutter_test:

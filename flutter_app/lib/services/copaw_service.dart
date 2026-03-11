@@ -1,118 +1,95 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import '../models/message.dart';
 
+import 'package:http/http.dart' as http;
+
+// 条件导入：Web 端使用 dart:html
+import 'copaw_service_web.dart' if (dart.library.io) 'copaw_service_native.dart' as platform;
+
+/// CopawService - OpenAI 兼容的 AI 聊天服务
+/// 支持 Ollama、OpenAI 等兼容 API
 class CopawService {
-  // COPAW 本地服务地址
-  static const String baseUrl = 'https://copaw.laidanbao.cn';
+  // API 基础地址 (OpenAI 兼容)
+  static String baseUrl = 'https://ollama.laidanbao.cn/v1';
 
-  final http.Client _client = http.Client();
+  // 默认模型
+  static String defaultModel = 'qwen3.5:9b';
 
-  // 健康检查
+  /// 更新 API 配置
+  static void updateConfig({String? url, String? model}) {
+    if (url != null) baseUrl = url;
+    if (model != null) defaultModel = model;
+  }
+
+  /// 健康检查 - 获取模型列表
   Future<bool> healthCheck() async {
     try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/health'),
-          )
-          .timeout(const Duration(seconds: 5));
-      return response.statusCode == 200;
+      final models = await getModels();
+      return models.isNotEmpty;
     } catch (e) {
-      print('健康检查失败：$e');
+      debugPrint('健康检查失败：$e');
       return false;
     }
   }
 
-  // 发送消息
-  Future<Message> sendMessage(String message, {String? conversationId}) async {
+  /// 获取可用模型列表
+  Future<List<String>> getModels() async {
     try {
-      final response = await _client
-          .post(
-            Uri.parse('$baseUrl/api/chat'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'message': message,
-              if (conversationId != null) 'conversation_id': conversationId,
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return Message.fromJson({
-          'role': 'assistant',
-          'content':
-              data['message'] ?? data['content'] ?? data['reply'] ?? '收到消息',
-        });
-      } else {
-        throw Exception('请求失败：${response.statusCode}');
-      }
+      return await platform.getModels('$baseUrl/models');
     } catch (e) {
-      print('发送消息失败：$e');
+      debugPrint('获取模型列表失败：$e');
+      return [];
+    }
+  }
+
+  /// 发送消息 (OpenAI Chat Completions API)
+  Future<Message> sendMessage(
+    String message, {
+    String? conversationId,
+    String? model,
+    List<Message>? history,
+  }) async {
+    // 构建消息历史
+    final List<Map<String, String>> messages = [];
+
+    // 添加历史消息
+    if (history != null && history.isNotEmpty) {
+      for (final msg in history) {
+        messages.add({
+          'role': msg.role,
+          'content': msg.content,
+        });
+      }
+    }
+
+    // 添加当前消息
+    messages.add({
+      'role': 'user',
+      'content': message,
+    });
+
+    final body = jsonEncode({
+      'model': model ?? defaultModel,
+      'messages': messages,
+      'stream': false,
+    });
+
+    try {
+      final result = await platform.sendChatMessage('$baseUrl/chat/completions', body);
+      return Message.fromJson({
+        'id': result['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        'role': 'assistant',
+        'content': result['content'],
+      });
+    } catch (e) {
+      debugPrint('发送消息失败：$e');
       rethrow;
     }
   }
 
-  // 获取会话列表
-  Future<List<dynamic>> getConversations() async {
-    try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/conversations'),
-          )
-          .timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-      return [];
-    } catch (e) {
-      print('获取会话列表失败：$e');
-      return [];
-    }
-  }
-
-  // 创建新会话
-  Future<String> createConversation() async {
-    try {
-      final response = await _client
-          .post(
-            Uri.parse('$baseUrl/api/conversations'),
-          )
-          .timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['id'] ?? data['conversation_id'] ?? '';
-      }
-      return '';
-    } catch (e) {
-      print('创建会话失败：$e');
-      return '';
-    }
-  }
-
-  // 获取会话历史
-  Future<List<Message>> getConversationHistory(String conversationId) async {
-    try {
-      final response = await _client
-          .get(
-            Uri.parse('$baseUrl/api/conversations/$conversationId/messages'),
-          )
-          .timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((json) => Message.fromJson(json)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('获取历史消息失败：$e');
-      return [];
-    }
-  }
-
   void dispose() {
-    _client.close();
+    // 清理资源
   }
 }

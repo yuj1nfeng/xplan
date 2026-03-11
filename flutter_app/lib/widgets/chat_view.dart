@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../providers/chat_provider.dart';
 import '../models/message.dart';
+import 'message_bubble.dart';
+import 'multi_input_widget.dart';
 
 class ChatView extends StatefulWidget {
   const ChatView({super.key});
@@ -12,15 +13,11 @@ class ChatView extends StatefulWidget {
 }
 
 class _ChatViewState extends State<ChatView> {
-  final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final FocusNode _focusNode = FocusNode();
 
   @override
   void dispose() {
-    _controller.dispose();
     _scrollController.dispose();
-    _focusNode.dispose();
     super.dispose();
   }
 
@@ -47,153 +44,193 @@ class _ChatViewState extends State<ChatView> {
 
         return Column(
           children: [
+            // 状态栏
+            _buildStatusBar(chatProvider),
             // 消息列表
             Expanded(
               child: chatProvider.messages.isEmpty
                   ? _buildWelcomeMessage()
                   : _buildMessageList(chatProvider),
             ),
-            // 输入区域
-            _buildInputArea(chatProvider),
+            // 多功能输入区域
+            MultiInputWidget(
+              onSendMessage: (message) => _handleMessage(chatProvider, message),
+              enabled: !chatProvider.isLoading,
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildWelcomeMessage() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  /// 状态栏
+  Widget _buildStatusBar(ChatProvider chatProvider) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: chatProvider.isConnected
+            ? Colors.green.withValues(alpha: 0.1)
+            : Colors.orange.withValues(alpha: 0.1),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[200]!),
+        ),
+      ),
+      child: Row(
         children: [
           Icon(
-            Icons.chat_bubble_outline,
-            size: 80,
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+            chatProvider.isConnected ? Icons.cloud_done : Icons.cloud_off,
+            size: 16,
+            color: chatProvider.isConnected ? Colors.green : Colors.orange,
           ),
-          const SizedBox(height: 24),
-          Text(
-            '👋 欢迎使用 XPlan',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '跨平台 COPAW 客户端',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey[600],
-                ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.symmetric(horizontal: 32),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                _buildFeatureItem('📱 iOS & Android'),
-                const SizedBox(height: 8),
-                _buildFeatureItem('💻 macOS, Windows, Linux'),
-                const SizedBox(height: 8),
-                _buildFeatureItem('⚡ 一套代码，全平台运行'),
-              ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              chatProvider.statusMessage,
+              style: TextStyle(
+                fontSize: 12,
+                color: chatProvider.isConnected ? Colors.green[700] : Colors.orange[700],
+              ),
             ),
           ),
+          // 模型选择
+          if (chatProvider.isConnected)
+            TextButton.icon(
+              icon: const Icon(Icons.smart_toy, size: 16),
+              label: Text(
+                chatProvider.currentModel,
+                style: const TextStyle(fontSize: 12),
+              ),
+              onPressed: () => _showModelSelector(chatProvider),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildFeatureItem(String text) {
-    return Text(
-      text,
-      style: const TextStyle(fontSize: 14),
+  /// 显示模型选择器
+  void _showModelSelector(ChatProvider chatProvider) async {
+    final models = await chatProvider.getAvailableModels();
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '选择模型',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ...models.map((model) => ListTile(
+              leading: Icon(
+                model == chatProvider.currentModel
+                    ? Icons.check_circle
+                    : Icons.radio_button_unchecked,
+                color: model == chatProvider.currentModel
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey,
+              ),
+              title: Text(model),
+              onTap: () {
+                chatProvider.setModel(model);
+                Navigator.pop(context);
+              },
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWelcomeMessage() {
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '👋 欢迎使用 XPlan',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'AI 智能助手',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+            ),
+            const SizedBox(height: 24),
+            // 功能卡片
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: [
+                  _buildFeatureCard(Icons.text_fields, '文本对话'),
+                  _buildFeatureCard(Icons.mic, '语音消息'),
+                  _buildFeatureCard(Icons.image, '发送图片'),
+                  _buildFeatureCard(Icons.videocam, '发送视频'),
+                  _buildFeatureCard(Icons.insert_drive_file, '发送文件'),
+                  _buildFeatureCard(Icons.link, '链接卡片'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard(IconData icon, String label) {
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 11)),
+        ],
+      ),
     );
   }
 
   Widget _buildMessageList(ChatProvider chatProvider) {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(16),
-      itemCount: chatProvider.messages.length + (chatProvider.isLoading ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == chatProvider.messages.length) {
-          return _buildTypingIndicator();
-        }
-        return _buildMessageBubble(chatProvider.messages[index]);
+    return RefreshIndicator(
+      onRefresh: () async {
+        await chatProvider.refreshConnection();
       },
-    );
-  }
-
-  Widget _buildMessageBubble(Message message) {
-    final isUser = message.role == 'user';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!isUser) ...[
-            CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              child: const Text('🤖', style: TextStyle(fontSize: 20)),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Column(
-              crossAxisAlignment:
-                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isUser
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.grey[200],
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isUser ? 16 : 4),
-                      bottomRight: Radius.circular(isUser ? 4 : 16),
-                    ),
-                  ),
-                  child: Text(
-                    message.content,
-                    style: TextStyle(
-                      color: isUser ? Colors.white : Colors.black87,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('HH:mm').format(message.timestamp),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (isUser) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              backgroundColor: Colors.grey[300],
-              child: const Text('👤', style: TextStyle(fontSize: 20)),
-            ),
-          ],
-        ],
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: chatProvider.messages.length + (chatProvider.isLoading ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == chatProvider.messages.length) {
+            return _buildTypingIndicator();
+          }
+          return MessageBubble(message: chatProvider.messages[index]);
+        },
       ),
     );
   }
@@ -217,11 +254,11 @@ class _ChatViewState extends State<ChatView> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDot(0),
+                _buildAnimatedDot(0),
                 const SizedBox(width: 4),
-                _buildDot(1),
+                _buildAnimatedDot(150),
                 const SizedBox(width: 4),
-                _buildDot(2),
+                _buildAnimatedDot(300),
               ],
             ),
           ),
@@ -230,13 +267,13 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _buildDot(int index) {
-    return TweenAnimationBuilder(
-      tween: Tween<double>(begin: 0, end: 1),
-      duration: Duration(milliseconds: 300 + index * 200),
+  Widget _buildAnimatedDot(int delay) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 600 + delay),
       builder: (context, value, child) {
         return Transform.translate(
-          offset: Offset(0, -4 * value),
+          offset: Offset(0, -4 * (value < 0.5 ? value : 1 - value)),
           child: Container(
             width: 6,
             height: 6,
@@ -250,66 +287,52 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _buildInputArea(ChatProvider chatProvider) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                decoration: const InputDecoration(
-                  hintText: '输入消息...',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.message),
-                ),
-                maxLines: 1,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(chatProvider),
-                enabled: !chatProvider.isLoading,
-              ),
-            ),
-            const SizedBox(width: 12),
-            CircleAvatar(
-              backgroundColor: chatProvider.isLoading
-                  ? Colors.grey[300]
-                  : Theme.of(context).colorScheme.primary,
-              child: IconButton(
-                icon: Icon(
-                  chatProvider.isLoading ? Icons.hourglass_empty : Icons.send,
-                  color: chatProvider.isLoading
-                      ? Colors.grey
-                      : Colors.white,
-                ),
-                onPressed: chatProvider.isLoading
-                    ? null
-                    : () => _sendMessage(chatProvider),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  /// 处理消息发送
+  void _handleMessage(ChatProvider chatProvider, Message message) {
+    // 添加用户消息到列表
+    chatProvider.addMessage(message);
+
+    // 如果是文本消息，发送到AI
+    if (message.type == MessageType.text) {
+      chatProvider.sendMessage(message.content);
+    } else {
+      // 其他类型的消息，AI回复确认
+      _sendMediaReply(chatProvider, message);
+    }
   }
 
-  void _sendMessage(ChatProvider chatProvider) {
-    final text = _controller.text.trim();
-    if (text.isNotEmpty) {
-      chatProvider.sendMessage(text);
-      _controller.clear();
-      _focusNode.requestFocus();
+  /// 发送媒体消息的AI回复
+  void _sendMediaReply(ChatProvider chatProvider, Message message) {
+    String replyContent;
+    switch (message.type) {
+      case MessageType.image:
+        replyContent = '📷 收到图片！我可以帮你分析图片内容或回答相关问题。';
+        break;
+      case MessageType.video:
+        replyContent = '🎬 收到视频！请问有什么我可以帮助你的？';
+        break;
+      case MessageType.voice:
+        replyContent = '🎤 收到语音消息！请问有什么我可以帮助你的？';
+        break;
+      case MessageType.file:
+        replyContent = '📎 收到文件「${message.fileInfo?.name ?? '未知'}」！我可以帮你处理文件内容。';
+        break;
+      case MessageType.link:
+        replyContent = '🔗 收到链接！我可以帮你总结链接内容或回答相关问题。';
+        break;
+      default:
+        replyContent = '收到消息！请问有什么我可以帮助你的？';
     }
+
+    // 延迟发送回复
+    Future.delayed(const Duration(milliseconds: 500), () {
+      final reply = Message.text(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        content: replyContent,
+        role: 'assistant',
+        timestamp: DateTime.now(),
+      );
+      chatProvider.addMessage(reply);
+    });
   }
 }
